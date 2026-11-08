@@ -16,7 +16,12 @@ local KEY = "steam2026"
 local DISCORD_LINK = "https://discord.gg/R2mSEuc6Cg"
 
 local GAMES = {
-
+	{ "My Game", true },
+	{ "Lobby", true },
+	{ "Arena", true },
+	{ "Obby", true },
+	{ "Tycoon", true },
+	{ "Test Place", false },
 }
 
 local TABS = { "Home", "Info", "Main", "Tools", "Visuals", "Floor", "Settings", "Interface", "Addons" }
@@ -439,7 +444,9 @@ for _, name in ipairs(TABS) do
 		local box = panel(p, UDim2.fromOffset(8, 8), UDim2.new(1, -16, 1, -16))
 		label({
 			Size = UDim2.fromScale(1, 1),
-			Text = name .. " page - add your own controls here",
+			Text = "Coming soon",
+			Font = Enum.Font.GothamMedium,
+			TextSize = 18,
 			TextColor3 = COL.dim,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			Parent = box,
@@ -1234,6 +1241,7 @@ do
 	local cfg = {
 		esp = false,
 		tracers = false,
+		skeleton = false,
 		names = true,
 		health = true,
 		distance = true,
@@ -1255,7 +1263,63 @@ do
 		e.hl:Destroy()
 		e.bb:Destroy()
 		e.line:Destroy()
+		for _, b in ipairs(e.bones) do b:Destroy() end
 		entries[p] = nil
+	end
+
+	local R15_BONES = {
+		{ "Head", "UpperTorso" }, { "UpperTorso", "LowerTorso" },
+		{ "UpperTorso", "LeftUpperArm" }, { "LeftUpperArm", "LeftLowerArm" }, { "LeftLowerArm", "LeftHand" },
+		{ "UpperTorso", "RightUpperArm" }, { "RightUpperArm", "RightLowerArm" }, { "RightLowerArm", "RightHand" },
+		{ "LowerTorso", "LeftUpperLeg" }, { "LeftUpperLeg", "LeftLowerLeg" }, { "LeftLowerLeg", "LeftFoot" },
+		{ "LowerTorso", "RightUpperLeg" }, { "RightUpperLeg", "RightLowerLeg" }, { "RightLowerLeg", "RightFoot" },
+	}
+	local R6_BONES = {
+		{ "Head", "Torso" }, { "Torso", "Left Arm" }, { "Torso", "Right Arm" },
+		{ "Torso", "Left Leg" }, { "Torso", "Right Leg" },
+	}
+
+	local function hideBones(e)
+		for _, b in ipairs(e.bones) do b.Visible = false end
+	end
+
+	local function drawBones(e, char, cam)
+		local list = char:FindFirstChild("UpperTorso") and R15_BONES or R6_BONES
+		for i, pair in ipairs(list) do
+			local a = char:FindFirstChild(pair[1])
+			local b = char:FindFirstChild(pair[2])
+			local line = e.bones[i]
+			if not line then
+				line = new("Frame", {
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					BorderSizePixel = 0,
+					Visible = false,
+					Parent = overlay,
+				})
+				e.bones[i] = line
+			end
+			if a and b then
+				local pa, onA = cam:WorldToViewportPoint(a.Position)
+				local pb, onB = cam:WorldToViewportPoint(b.Position)
+				if onA and onB then
+					local from = Vector2.new(pa.X, pa.Y)
+					local to = Vector2.new(pb.X, pb.Y)
+					local d = to - from
+					line.Size = UDim2.fromOffset(d.Magnitude + 1, 2)
+					line.Position = UDim2.fromOffset((from.X + to.X) / 2, (from.Y + to.Y) / 2)
+					line.Rotation = math.deg(math.atan2(d.Y, d.X))
+					line.BackgroundColor3 = cfg.color
+					line.Visible = true
+				else
+					line.Visible = false
+				end
+			else
+				line.Visible = false
+			end
+		end
+		for i = #list + 1, #e.bones do
+			e.bones[i].Visible = false
+		end
 	end
 
 	local function buildEntry(p, char, head)
@@ -1320,7 +1384,7 @@ do
 			Visible = false,
 			Parent = overlay,
 		})
-		return { char = char, hl = hl, bb = bb, name = nameL, bar = bar, fill = fill, info = info, line = line }
+		return { char = char, hl = hl, bb = bb, name = nameL, bar = bar, fill = fill, info = info, line = line, bones = {} }
 	end
 
 	RunService.RenderStepped:Connect(function()
@@ -1328,7 +1392,7 @@ do
 		if not cam then return end
 		local myRoot = getRoot()
 		local vp = cam.ViewportSize
-		local any = cfg.esp or cfg.tracers
+		local any = cfg.esp or cfg.tracers or cfg.skeleton
 
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= player then
@@ -1391,10 +1455,17 @@ do
 					else
 						e.line.Visible = false
 					end
+
+					if cfg.skeleton then
+						drawBones(e, char, cam)
+					else
+						hideBones(e)
+					end
 				elseif e then
 					e.hl.Enabled = false
 					e.bb.Enabled = false
 					e.line.Visible = false
+					hideBones(e)
 				end
 			end
 		end
@@ -1406,6 +1477,7 @@ do
 	sectionLabel(sf, nxt(), "ESP")
 	toggleRow(sf, nxt(), "ESP", "Highlights players through walls", function(v) cfg.esp = v end)
 	toggleRow(sf, nxt(), "ESP Tracers", "Line from the bottom of the screen to each player", function(v) cfg.tracers = v end)
+	toggleRow(sf, nxt(), "ESP Skeleton", "Draws a stick-figure skeleton on each player", function(v) cfg.skeleton = v end)
 
 	sectionLabel(sf, nxt(), "ESP INFO")
 	local _, setHealth = toggleRow(sf, nxt(), "Show Health", "Health bar and HP number above players", function(v) cfg.health = v end)
@@ -1422,13 +1494,156 @@ do
 		if n then cfg.maxDist = math.clamp(n, 10, 100000) end
 		box.Text = tostring(cfg.maxDist)
 	end)
-	inputRow(sf, nxt(), "ESP color (hex)", "#" .. cfg.color:ToHex():upper(), function(box)
+
+	sectionLabel(sf, nxt(), "ESP COLOR")
+	local espHex
+	local espMarked
+	local function markEsp(btn)
+		if espMarked then
+			local st = espMarked:FindFirstChildOfClass("UIStroke")
+			st.Color = COL.stroke
+			st.Thickness = 1
+		end
+		espMarked = btn
+		if btn then
+			local st = btn:FindFirstChildOfClass("UIStroke")
+			st.Color = Color3.fromRGB(255, 255, 255)
+			st.Thickness = 2
+		end
+	end
+
+	local espSwatchBox = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 60),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, {
+		corner(6),
+		stroke(),
+		new("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingTop = UDim.new(0, 12) }),
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) }),
+	})
+
+	local espColors = {
+		{ "Red", Color3.fromRGB(255, 60, 60) },
+		{ "Orange", Color3.fromRGB(255, 140, 40) },
+		{ "Yellow", Color3.fromRGB(240, 200, 50) },
+		{ "Green", Color3.fromRGB(70, 200, 90) },
+		{ "Cyan", Color3.fromRGB(0, 200, 220) },
+		{ "Blue", Color3.fromRGB(70, 130, 255) },
+		{ "Purple", Color3.fromRGB(125, 85, 255) },
+		{ "Pink", Color3.fromRGB(255, 95, 170) },
+		{ "White", Color3.fromRGB(255, 255, 255) },
+	}
+	for i, c in ipairs(espColors) do
+		local btn = new("TextButton", {
+			Name = c[1],
+			Size = UDim2.fromOffset(36, 36),
+			BackgroundColor3 = c[2],
+			Text = "",
+			AutoButtonColor = false,
+			LayoutOrder = i,
+			Parent = espSwatchBox,
+		}, { corner(8), stroke() })
+		btn:SetAttribute("NoRecolor", true)
+		btn.MouseButton1Click:Connect(function()
+			cfg.color = c[2]
+			markEsp(btn)
+			if espHex then espHex.Text = "#" .. c[2]:ToHex():upper() end
+		end)
+		if i == 1 then markEsp(btn) end
+	end
+
+	espHex = inputRow(sf, nxt(), "Custom hex color", "#" .. cfg.color:ToHex():upper(), function(box)
 		local txt = box.Text
 		if not txt:find("^#") then txt = "#" .. txt end
 		local ok, c = pcall(Color3.fromHex, txt)
-		if ok and c then cfg.color = c end
+		if ok and c then
+			cfg.color = c
+			markEsp(nil)
+		end
 		box.Text = "#" .. cfg.color:ToHex():upper()
 	end)
+
+	local fxDark, fxSnow = false, false
+
+	local dimmer = new("Frame", {
+		Name = "MenuDim",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.6,
+		BorderSizePixel = 0,
+		ZIndex = 0,
+		Visible = false,
+		Parent = gui,
+	})
+	local snowLayer = new("Frame", {
+		Name = "MenuSnow",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 0,
+		Visible = false,
+		ClipsDescendants = true,
+		Parent = gui,
+	})
+
+	local rng = Random.new()
+	local flakes = {}
+	for i = 1, 80 do
+		local size = rng:NextInteger(2, 5)
+		local frame = new("Frame", {
+			Size = UDim2.fromOffset(size, size),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = rng:NextNumber(0.1, 0.5),
+			BorderSizePixel = 0,
+			Parent = snowLayer,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+		flakes[i] = {
+			frame = frame,
+			x = rng:NextNumber(),
+			y = rng:NextNumber() * 700,
+			speed = rng:NextNumber(40, 110),
+			phase = rng:NextNumber(0, 6.28),
+			sway = rng:NextNumber(0.005, 0.02),
+		}
+	end
+
+	local function refreshFx()
+		local open = menu.Visible
+		dimmer.Visible = open and fxDark
+		snowLayer.Visible = open and fxSnow
+	end
+	menu:GetPropertyChangedSignal("Visible"):Connect(refreshFx)
+
+	RunService.RenderStepped:Connect(function(dt)
+		if not snowLayer.Visible then return end
+		local h = gui.AbsoluteSize.Y
+		local t = os.clock()
+		for _, f in ipairs(flakes) do
+			f.y += f.speed * dt
+			if f.y > h then
+				f.y = -10
+				f.x = rng:NextNumber()
+			end
+			f.frame.Position = UDim2.new(f.x + math.sin(t + f.phase) * f.sway, 0, 0, f.y)
+		end
+	end)
+
+	sectionLabel(sf, nxt(), "BACKGROUND (only visible while the menu is open)")
+	local _, setDark = toggleRow(sf, nxt(), "Dark Background", "Darkens the screen behind the menu", function(v)
+		fxDark = v
+		refreshFx()
+	end)
+	sliderRow(sf, nxt(), "Background darkness", 10, 90, 40, function(v)
+		dimmer.BackgroundTransparency = 1 - v / 100
+	end)
+	local _, setSnow = toggleRow(sf, nxt(), "Snow", "Falling snow behind the menu", function(v)
+		fxSnow = v
+		refreshFx()
+	end)
+	setDark(true)
+	setSnow(true)
 end
 
 ---------------------------------------------------------------------
@@ -1531,6 +1746,203 @@ do
 	setHead(true)
 	setVis(true)
 	toggleRow(sf, nxt(), "Team Check", "Ignore players on your team", function(v) cfg.teamCheck = v end)
+
+	local GREEN = Color3.fromRGB(70, 200, 90)
+	local RED = Color3.fromRGB(220, 60, 60)
+	local specTarget = nil
+	local flinging = false
+	local rows = {}
+
+	sectionLabel(sf, nxt(), "PLAYERS")
+
+	local specRow = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 40),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, { corner(6), stroke() })
+	local specLabel = label({
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.new(1, -130, 1, 0),
+		Text = "Spectating: nobody",
+		Font = Enum.Font.GothamMedium,
+		TextSize = 14,
+		Parent = specRow,
+	})
+	local stopBtn = button({
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(100, 26),
+		Text = "Stop",
+		Parent = specRow,
+	})
+
+	local function setSpectate(p)
+		specTarget = p
+		specLabel.Text = p and ("Spectating: " .. p.DisplayName) or "Spectating: nobody"
+		if not p then
+			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			local cam = workspace.CurrentCamera
+			if hum and cam then cam.CameraSubject = hum end
+		end
+	end
+	stopBtn.MouseButton1Click:Connect(function() setSpectate(nil) end)
+
+	local function teleportTo(p)
+		local root = getRoot()
+		local tRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		if root and tRoot then
+			root.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+		end
+	end
+
+	local function fling(p)
+		if flinging then return end
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local root = getRoot()
+		local tRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		if not (hum and root and tRoot) then return end
+		flinging = true
+		local home = root.CFrame
+		local started = os.clock()
+		hum.PlatformStand = true
+		local conn
+		conn = RunService.Heartbeat:Connect(function()
+			if os.clock() - started > 1.5 or not root.Parent or not tRoot.Parent then
+				conn:Disconnect()
+				if root.Parent then
+					root.AssemblyAngularVelocity = Vector3.zero
+					root.AssemblyLinearVelocity = Vector3.zero
+					root.CFrame = home
+				end
+				hum.PlatformStand = false
+				flinging = false
+				return
+			end
+			root.CFrame = tRoot.CFrame + tRoot.AssemblyLinearVelocity * 0.1
+			root.AssemblyAngularVelocity = Vector3.new(0, 20000, 0)
+			root.AssemblyLinearVelocity = Vector3.zero
+		end)
+	end
+
+	local listBox = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 300),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, { corner(6), stroke() })
+	local plist = new("ScrollingFrame", {
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.new(1, -12, 1, -12),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Parent = listBox,
+	}, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+	local emptyLbl = label({
+		Size = UDim2.new(1, 0, 0, 26),
+		Text = "  No other players in the server",
+		TextSize = 12,
+		TextColor3 = COL.dim,
+		Parent = plist,
+	})
+
+	local function addRow(p)
+		if rows[p] or p == player then return end
+		local row = new("Frame", {
+			Size = UDim2.new(1, -6, 0, 54),
+			BackgroundColor3 = COL.panel,
+			Parent = plist,
+		}, { corner(6), stroke() })
+		label({
+			Position = UDim2.fromOffset(10, 6),
+			Size = UDim2.new(1, -250, 0, 16),
+			Text = p.DisplayName .. " (@" .. p.Name .. ")",
+			TextSize = 13,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Parent = row,
+		})
+		local bar = new("Frame", {
+			Position = UDim2.fromOffset(10, 32),
+			Size = UDim2.fromOffset(110, 8),
+			BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+			BorderSizePixel = 0,
+			Parent = row,
+		}, { corner(4) })
+		local fill = new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = GREEN,
+			BorderSizePixel = 0,
+			Parent = bar,
+		}, { corner(4) })
+		local hpL = label({
+			Position = UDim2.fromOffset(128, 26),
+			Size = UDim2.fromOffset(90, 20),
+			Text = "",
+			TextSize = 12,
+			TextColor3 = COL.dim,
+			Parent = row,
+		})
+		local function mk(text, xOff)
+			return button({
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, xOff, 0.5, 0),
+				Size = UDim2.fromOffset(70, 26),
+				Text = text,
+				TextSize = 12,
+				TextColor3 = COL.text,
+				Parent = row,
+			})
+		end
+		local specBtn = mk("Spectate", -160)
+		local tpBtn = mk("TP", -84)
+		local flingBtn = mk("Fling", -8)
+		specBtn.MouseButton1Click:Connect(function()
+			if specTarget == p then setSpectate(nil) else setSpectate(p) end
+		end)
+		tpBtn.MouseButton1Click:Connect(function() teleportTo(p) end)
+		flingBtn.MouseButton1Click:Connect(function() fling(p) end)
+		rows[p] = { row = row, fill = fill, hp = hpL, spec = specBtn }
+		emptyLbl.Visible = false
+	end
+
+	local function removeRow(p)
+		local r = rows[p]
+		if r then
+			r.row:Destroy()
+			rows[p] = nil
+		end
+		if specTarget == p then setSpectate(nil) end
+		emptyLbl.Visible = next(rows) == nil
+	end
+
+	for _, p in ipairs(Players:GetPlayers()) do addRow(p) end
+	Players.PlayerAdded:Connect(addRow)
+	Players.PlayerRemoving:Connect(removeRow)
+
+	RunService.Heartbeat:Connect(function()
+		for p, r in pairs(rows) do
+			local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				local frac = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+				r.fill.Size = UDim2.fromScale(frac, 1)
+				r.fill.BackgroundColor3 = RED:Lerp(GREEN, frac)
+				r.hp.Text = math.floor(hum.Health + 0.5) .. "/" .. math.floor(hum.MaxHealth + 0.5) .. " HP"
+			else
+				r.fill.Size = UDim2.fromScale(0, 1)
+				r.hp.Text = "no character"
+			end
+			r.spec.Text = (specTarget == p) and "Stop" or "Spectate"
+		end
+		if specTarget then
+			local cam = workspace.CurrentCamera
+			local h = specTarget.Character and specTarget.Character:FindFirstChildOfClass("Humanoid")
+			if cam and h and cam.CameraSubject ~= h then cam.CameraSubject = h end
+		end
+	end)
 end
 
 ---------------------------------------------------------------------
@@ -1606,9 +2018,16 @@ do
 		{ "ESP", "Visuals", "esp highlight players wallhack" },
 		{ "ESP Tracers", "Visuals", "traces lines tracer" },
 		{ "Show Health", "Visuals", "esp health hp bar" },
+		{ "ESP Skeleton", "Visuals", "skeleton bones stick figure" },
+		{ "ESP Color", "Visuals", "esp colour color swatch hex" },
 		{ "Aimbot", "Main", "aim assist lock camera" },
 		{ "Aimbot FOV", "Main", "fov circle radius" },
 		{ "Aimbot Smoothness", "Main", "smooth slider speed" },
+		{ "Player List", "Main", "players spectate view tp teleport health" },
+		{ "Spectate", "Main", "watch camera player" },
+		{ "Fling", "Main", "fling players troll" },
+		{ "Dark Background", "Visuals", "darken dim screen background" },
+		{ "Snow", "Visuals", "snowfall winter flakes background" },
 	}
 	for _, e in ipairs(extra) do
 		table.insert(entries, { name = e[1], tab = e[2], keys = (e[1] .. " " .. e[3]):lower() })
