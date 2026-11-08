@@ -1,0 +1,1676 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+---------------------------------------------------------------------
+-- CONFIG
+---------------------------------------------------------------------
+local TITLE = "steam"
+local VERSION = "v1"
+local BUILD = "0.1.0"
+local KEY = "steam2026"
+local DISCORD_LINK = "https://discord.gg/R2mSEuc6Cg"
+
+local GAMES = {
+
+}
+
+local TABS = { "Home", "Info", "Main", "Tools", "Visuals", "Floor", "Settings", "Interface", "Addons" }
+
+local COL = {
+	bg = Color3.fromRGB(14, 14, 14),
+	panel = Color3.fromRGB(20, 20, 20),
+	panel2 = Color3.fromRGB(28, 28, 28),
+	stroke = Color3.fromRGB(44, 44, 44),
+	text = Color3.fromRGB(235, 235, 235),
+	dim = Color3.fromRGB(140, 140, 140),
+	accent = Color3.fromRGB(125, 85, 255),
+	green = Color3.fromRGB(70, 200, 90),
+	red = Color3.fromRGB(220, 60, 60),
+}
+
+---------------------------------------------------------------------
+-- HELPERS
+---------------------------------------------------------------------
+local function new(class, props, children)
+	local inst = Instance.new(class)
+	for k, v in pairs(props or {}) do
+		inst[k] = v
+	end
+	for _, c in ipairs(children or {}) do
+		c.Parent = inst
+	end
+	return inst
+end
+
+local function corner(r)
+	return new("UICorner", { CornerRadius = UDim.new(0, r) })
+end
+
+local function stroke(color, thickness)
+	return new("UIStroke", { Color = color or COL.stroke, Thickness = thickness or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+end
+
+local function label(props)
+	props.BackgroundTransparency = 1
+	props.Font = props.Font or Enum.Font.Code
+	props.TextColor3 = props.TextColor3 or COL.text
+	props.TextSize = props.TextSize or 14
+	props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
+	return new("TextLabel", props)
+end
+
+local function button(props)
+	props.AutoButtonColor = false
+	props.BackgroundColor3 = props.BackgroundColor3 or COL.panel2
+	props.Font = props.Font or Enum.Font.Code
+	props.TextColor3 = props.TextColor3 or COL.dim
+	props.TextSize = props.TextSize or 13
+	local b = new("TextButton", props, { corner(4), stroke() })
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.12), { TextColor3 = COL.text }):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.12), { TextColor3 = props.TextColor3 }):Play()
+	end)
+	return b
+end
+
+---------------------------------------------------------------------
+-- SCREEN GUI + TOGGLE BUTTON
+---------------------------------------------------------------------
+local gui = new("ScreenGui", {
+	Name = "SteamMenuGui",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	IgnoreGuiInset = true,
+	Parent = playerGui,
+})
+
+local toggle = new("TextButton", {
+	Name = "SteamToggle",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 16, 1, -16),
+	Size = UDim2.fromOffset(56, 56),
+	BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+	AutoButtonColor = false,
+	Text = "",
+	Parent = gui,
+}, { corner(14), stroke(Color3.fromRGB(60, 60, 60), 1) })
+
+label({
+	Size = UDim2.fromScale(1, 1),
+	Text = "S",
+	Font = Enum.Font.GothamBlack,
+	TextSize = 30,
+	TextColor3 = Color3.fromRGB(235, 235, 235),
+	TextXAlignment = Enum.TextXAlignment.Center,
+	Parent = toggle,
+})
+
+toggle.MouseEnter:Connect(function()
+	TweenService:Create(toggle, TweenInfo.new(0.12), { Size = UDim2.fromOffset(60, 60) }):Play()
+end)
+toggle.MouseLeave:Connect(function()
+	TweenService:Create(toggle, TweenInfo.new(0.12), { Size = UDim2.fromOffset(56, 56) }):Play()
+end)
+
+---------------------------------------------------------------------
+-- MENU WINDOW
+---------------------------------------------------------------------
+local W, H = 720, 600
+local HEADER_H = 46
+local SIDE_W = 214
+local STATUS_H = 22
+
+local menu = new("Frame", {
+	Name = "Menu",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(W, H),
+	BackgroundColor3 = COL.bg,
+	Visible = false,
+	ClipsDescendants = true,
+	Parent = gui,
+}, { corner(6), stroke() })
+
+new("UISizeConstraint", { MaxSize = Vector2.new(W, H), Parent = menu })
+
+local header = new("Frame", {
+	Name = "Header",
+	Size = UDim2.new(1, 0, 0, HEADER_H),
+	BackgroundColor3 = COL.bg,
+	BorderSizePixel = 0,
+	Parent = menu,
+})
+new("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = header })
+
+label({
+	Position = UDim2.fromOffset(60, 0),
+	Size = UDim2.fromOffset(150, HEADER_H),
+	Text = TITLE .. " " .. VERSION,
+	Font = Enum.Font.GothamBold,
+	TextSize = 18,
+	Parent = header,
+})
+new("Frame", {
+	Position = UDim2.fromOffset(16, 8),
+	Size = UDim2.fromOffset(30, 30),
+	BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+	Parent = header,
+}, {
+	corner(8),
+	stroke(Color3.fromRGB(60, 60, 60)),
+	new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = "S",
+		Font = Enum.Font.GothamBlack,
+		TextSize = 18,
+		TextColor3 = COL.text,
+	}),
+})
+
+new("Frame", { Position = UDim2.fromOffset(SIDE_W, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = header })
+
+local crumbTitle = label({
+	Position = UDim2.fromOffset(SIDE_W + 16, 6),
+	Size = UDim2.fromOffset(200, 18),
+	Text = "Home",
+	Font = Enum.Font.Code,
+	TextSize = 14,
+	Parent = header,
+})
+local crumbSub = label({
+	Position = UDim2.fromOffset(SIDE_W + 16, 24),
+	Size = UDim2.fromOffset(220, 16),
+	Text = "Homepage for " .. TITLE,
+	TextSize = 12,
+	TextColor3 = COL.dim,
+	Parent = header,
+})
+
+local search = new("TextBox", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -52, 0.5, 0),
+	Size = UDim2.fromOffset(200, 32),
+	BackgroundColor3 = COL.panel,
+	Font = Enum.Font.Code,
+	PlaceholderText = "Search",
+	PlaceholderColor3 = COL.dim,
+	Text = "",
+	TextColor3 = COL.text,
+	TextSize = 13,
+	ClearTextOnFocus = false,
+	Parent = header,
+}, { corner(6), stroke() })
+
+local closeBtn = new("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -12, 0.5, 0),
+	Size = UDim2.fromOffset(30, 30),
+	BackgroundTransparency = 1,
+	Text = "✕",
+	Font = Enum.Font.GothamBold,
+	TextSize = 16,
+	TextColor3 = COL.dim,
+	Parent = header,
+})
+closeBtn.MouseEnter:Connect(function() closeBtn.TextColor3 = COL.text end)
+closeBtn.MouseLeave:Connect(function() closeBtn.TextColor3 = COL.dim end)
+
+local sidebar = new("Frame", {
+	Name = "Sidebar",
+	Position = UDim2.fromOffset(0, HEADER_H),
+	Size = UDim2.fromOffset(SIDE_W, H - HEADER_H - STATUS_H),
+	BackgroundColor3 = COL.bg,
+	BorderSizePixel = 0,
+	Parent = menu,
+})
+new("Frame", { Position = UDim2.new(1, -1, 0, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = sidebar })
+
+local content = new("Frame", {
+	Name = "Content",
+	Position = UDim2.fromOffset(SIDE_W, HEADER_H),
+	Size = UDim2.new(1, -SIDE_W, 1, -HEADER_H - STATUS_H),
+	BackgroundTransparency = 1,
+	Parent = menu,
+})
+
+local status = new("Frame", {
+	Position = UDim2.new(0, 0, 1, -STATUS_H),
+	Size = UDim2.new(1, 0, 0, STATUS_H),
+	BackgroundColor3 = COL.bg,
+	BorderSizePixel = 0,
+	Parent = menu,
+})
+new("Frame", { Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = status })
+label({
+	Size = UDim2.fromScale(1, 1),
+	Text = "Game: " .. (GAMES[1] and GAMES[1][1] or "Unknown") .. " | Build: " .. BUILD,
+	TextSize = 12,
+	TextColor3 = COL.dim,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	Parent = status,
+})
+
+---------------------------------------------------------------------
+-- PAGES
+---------------------------------------------------------------------
+local pages = {}
+local tabButtons = {}
+
+local function makePage(name)
+	local p = new("Frame", {
+		Name = name,
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Visible = false,
+		Parent = content,
+	})
+	pages[name] = p
+	return p
+end
+
+local function panel(parent, pos, size)
+	return new("Frame", {
+		Position = pos,
+		Size = size,
+		BackgroundColor3 = COL.bg,
+		Parent = parent,
+	}, { corner(6), stroke() })
+end
+
+-- HOME PAGE -----------------------------------------------------------------
+local home = makePage("Home")
+local contentW = W - SIDE_W
+
+local accW = 252
+local acc = panel(home, UDim2.fromOffset(8, 8), UDim2.fromOffset(accW, 372))
+label({ Position = UDim2.fromOffset(34, 0), Size = UDim2.fromOffset(150, 36), Text = "Account", Font = Enum.Font.GothamMedium, TextSize = 14, Parent = acc })
+new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 0), Size = UDim2.fromOffset(20, 36), Text = "◉", TextColor3 = COL.accent, TextSize = 16, Font = Enum.Font.GothamBold, Parent = acc })
+label({ Position = UDim2.new(1, -28, 0, 0), Size = UDim2.fromOffset(20, 36), Text = "▾", TextXAlignment = Enum.TextXAlignment.Center, TextSize = 16, Parent = acc })
+new("Frame", { Position = UDim2.fromOffset(0, 36), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = acc })
+
+local avatarBox = new("Frame", {
+	Position = UDim2.fromOffset(8, 44),
+	Size = UDim2.fromOffset(accW - 16, 200),
+	BackgroundColor3 = COL.panel,
+	Parent = acc,
+}, { corner(4), stroke() })
+local avatar = new("ImageLabel", {
+	BackgroundTransparency = 1,
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(190, 190),
+	Image = "",
+	Parent = avatarBox,
+})
+local avatarFallback = label({
+	Size = UDim2.fromScale(1, 1),
+	Text = "Unavailable",
+	TextColor3 = COL.dim,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	Parent = avatarBox,
+})
+task.spawn(function()
+	local ok, img = pcall(function()
+		return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+	end)
+	if ok and img then
+		avatar.Image = img
+		avatarFallback.Visible = false
+	end
+end)
+
+local greeting = label({
+	Position = UDim2.fromOffset(10, 250),
+	Size = UDim2.fromOffset(accW - 20, 40),
+	Text = "Welcome back to " .. TITLE .. ", " .. player.DisplayName .. "!",
+	TextWrapped = true,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextSize = 13,
+	Parent = acc,
+})
+new("Frame", { Position = UDim2.fromOffset(10, 298), Size = UDim2.new(1, -20, 0, 2), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = acc })
+
+button({ Position = UDim2.fromOffset(8, 308), Size = UDim2.fromOffset(accW - 16, 24), Text = "User Dashboard", Parent = acc })
+local mainServerBtn = button({ Position = UDim2.fromOffset(8, 338), Size = UDim2.fromOffset((accW - 24) / 2, 24), Text = "Main Server", Parent = acc })
+local serverLink = new("TextBox", {
+	Position = UDim2.fromOffset(8, 266),
+	Size = UDim2.fromOffset(accW - 16, 26),
+	BackgroundColor3 = COL.panel,
+	Font = Enum.Font.Code,
+	Text = DISCORD_LINK,
+	TextColor3 = COL.text,
+	TextSize = 12,
+	ClearTextOnFocus = false,
+	Visible = false,
+	ZIndex = 5,
+	Parent = acc,
+}, { corner(4), stroke(COL.accent) })
+serverLink:GetPropertyChangedSignal("Text"):Connect(function()
+	if serverLink.Text ~= DISCORD_LINK then
+		serverLink.Text = DISCORD_LINK
+	end
+end)
+serverLink.FocusLost:Connect(function()
+	serverLink.Visible = false
+	mainServerBtn.Text = "Main Server"
+end)
+mainServerBtn.MouseButton1Click:Connect(function()
+	serverLink.Visible = true
+	serverLink:CaptureFocus()
+	task.wait()
+	serverLink.SelectionStart = 1
+	serverLink.CursorPosition = #DISCORD_LINK + 1
+	mainServerBtn.Text = "Ctrl+C to copy"
+end)
+button({ Position = UDim2.fromOffset(16 + (accW - 24) / 2, 338), Size = UDim2.fromOffset((accW - 24) / 2, 24), Text = "Support Server", Parent = acc })
+
+local rx = 8 + accW + 8
+local rW = contentW - rx - 8
+local right = panel(home, UDim2.fromOffset(rx, 8), UDim2.fromOffset(rW, 372))
+
+local strip = new("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, Parent = right })
+new("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = strip })
+for i, glyph in ipairs({ "▣", "✦", "ⓘ" }) do
+	new("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new((i - 1) / 3, 0, 0, 0),
+		Size = UDim2.new(1 / 3, 0, 1, 0),
+		Text = glyph,
+		TextColor3 = i == 1 and COL.text or COL.accent,
+		TextSize = 16,
+		Font = Enum.Font.GothamBold,
+		Parent = strip,
+	})
+end
+
+local list = new("ScrollingFrame", {
+	Position = UDim2.fromOffset(8, 40),
+	Size = UDim2.new(1, -16, 0, 250),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 3,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	Parent = right,
+}, { new("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }) })
+
+for i, g in ipairs(GAMES) do
+	local row = new("Frame", { Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, LayoutOrder = i, Parent = list })
+	new("Frame", {
+		Position = UDim2.fromOffset(2, 4),
+		Size = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = g[2] and COL.green or COL.red,
+		Parent = row,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	label({
+		Position = UDim2.fromOffset(22, 0),
+		Size = UDim2.new(1, -22, 1, 0),
+		Text = g[1],
+		TextSize = 13,
+		TextColor3 = (i == 1) and Color3.fromRGB(90, 160, 255) or COL.text,
+		Parent = row,
+	})
+end
+
+new("Frame", { Position = UDim2.fromOffset(8, 296), Size = UDim2.new(1, -16, 0, 2), BackgroundColor3 = COL.stroke, BorderSizePixel = 0, Parent = right })
+label({
+	Position = UDim2.fromOffset(8, 304),
+	Size = UDim2.new(1, -16, 0, 34),
+	Text = "You can report bugs or suggest features in the user dashboard:",
+	TextWrapped = true,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextSize = 12,
+	Parent = right,
+})
+button({ Position = UDim2.fromOffset(8, 340), Size = UDim2.new(1, -16, 0, 24), Text = "Feedback", Parent = right })
+
+-- OTHER PAGES (placeholders you can fill in) -------------------------------
+for _, name in ipairs(TABS) do
+	if name ~= "Home" and name ~= "Tools" and name ~= "Settings" and name ~= "Visuals" and name ~= "Main" and name ~= "Info" then
+		local p = makePage(name)
+		local box = panel(p, UDim2.fromOffset(8, 8), UDim2.new(1, -16, 1, -16))
+		label({
+			Size = UDim2.fromScale(1, 1),
+			Text = name .. " page - add your own controls here",
+			TextColor3 = COL.dim,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Parent = box,
+		})
+	end
+end
+
+---------------------------------------------------------------------
+-- TAB BUTTONS
+---------------------------------------------------------------------
+local tabIcons = {
+	Home = "⌂", Info = "ⓘ", Main = "⌂", Tools = "✱", Visuals = "◉",
+	Floor = "✦", Settings = "⚙", Interface = "◐", Addons = "⬡",
+}
+
+local current
+local function selectTab(name)
+	current = name
+	for n, b in pairs(tabButtons) do
+		local active = (n == name)
+		b.BackgroundTransparency = active and 0 or 1
+		b.Label.TextColor3 = active and COL.text or COL.dim
+	end
+	for n, p in pairs(pages) do
+		p.Visible = (n == name)
+	end
+	crumbTitle.Text = name
+	crumbSub.Text = name .. " page for " .. TITLE
+end
+
+for i, name in ipairs(TABS) do
+	local b = new("TextButton", {
+		Name = name,
+		Position = UDim2.fromOffset(0, (i - 1) * 40),
+		Size = UDim2.new(1, -1, 0, 40),
+		BackgroundColor3 = COL.panel,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		Parent = sidebar,
+	})
+	new("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(14, 0),
+		Size = UDim2.fromOffset(24, 40),
+		Text = tabIcons[name] or "•",
+		TextColor3 = COL.accent,
+		TextSize = 18,
+		Font = Enum.Font.GothamBold,
+		Parent = b,
+	})
+	local l = label({
+		Name = "Label",
+		Position = UDim2.fromOffset(46, 0),
+		Size = UDim2.new(1, -46, 1, 0),
+		Text = name,
+		TextSize = 14,
+		TextColor3 = COL.dim,
+		Parent = b,
+	})
+	tabButtons[name] = b
+	b.MouseButton1Click:Connect(function() selectTab(name) end)
+end
+selectTab("Home")
+
+---------------------------------------------------------------------
+-- OPEN / CLOSE + DRAG
+---------------------------------------------------------------------
+local function setOpen(open)
+	menu.Visible = open
+end
+closeBtn.MouseButton1Click:Connect(function() setOpen(false) end)
+
+menu.Active = true
+header.Active = true
+
+---------------------------------------------------------------------
+-- KEY SYSTEM
+---------------------------------------------------------------------
+local unlocked = false
+
+local keyWindow = new("Frame", {
+	Name = "KeyWindow",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(380, 262),
+	BackgroundColor3 = COL.bg,
+	Active = true,
+	Parent = gui,
+}, { corner(6), stroke() })
+
+label({
+	Position = UDim2.fromOffset(20, 14),
+	Size = UDim2.new(1, -60, 0, 24),
+	Text = TITLE .. " key system",
+	Font = Enum.Font.GothamBold,
+	TextSize = 18,
+	Parent = keyWindow,
+})
+label({
+	Position = UDim2.fromOffset(20, 40),
+	Size = UDim2.new(1, -40, 0, 18),
+	Text = "Enter your key to unlock the menu",
+	TextSize = 12,
+	TextColor3 = COL.dim,
+	Parent = keyWindow,
+})
+
+local keyClose = new("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -12, 0, 12),
+	Size = UDim2.fromOffset(28, 28),
+	BackgroundTransparency = 1,
+	Text = "✕",
+	Font = Enum.Font.GothamBold,
+	TextSize = 16,
+	TextColor3 = COL.dim,
+	Parent = keyWindow,
+})
+keyClose.MouseButton1Click:Connect(function()
+	keyWindow.Visible = false
+end)
+
+local keyBox = new("TextBox", {
+	Position = UDim2.fromOffset(20, 72),
+	Size = UDim2.new(1, -40, 0, 34),
+	BackgroundColor3 = COL.panel,
+	Font = Enum.Font.Code,
+	PlaceholderText = "Enter key",
+	PlaceholderColor3 = COL.dim,
+	Text = "",
+	TextColor3 = COL.text,
+	TextSize = 14,
+	ClearTextOnFocus = false,
+	Parent = keyWindow,
+}, { corner(6), stroke() })
+
+local submitBtn = button({
+	Position = UDim2.fromOffset(20, 114),
+	Size = UDim2.new(1, -40, 0, 32),
+	Text = "Submit Key",
+	TextColor3 = COL.text,
+	TextSize = 14,
+	Parent = keyWindow,
+})
+
+local keyStatus = label({
+	Position = UDim2.fromOffset(20, 152),
+	Size = UDim2.new(1, -40, 0, 18),
+	Text = "",
+	TextSize = 12,
+	Parent = keyWindow,
+})
+
+new("Frame", {
+	Position = UDim2.fromOffset(20, 180),
+	Size = UDim2.new(1, -40, 0, 1),
+	BackgroundColor3 = COL.stroke,
+	BorderSizePixel = 0,
+	Parent = keyWindow,
+})
+label({
+	Position = UDim2.fromOffset(20, 190),
+	Size = UDim2.new(1, -40, 0, 16),
+	Text = "Need a key? Join our Discord:",
+	TextSize = 12,
+	TextColor3 = COL.dim,
+	Parent = keyWindow,
+})
+
+local linkBox = new("TextBox", {
+	Position = UDim2.fromOffset(20, 212),
+	Size = UDim2.new(1, -150, 0, 30),
+	BackgroundColor3 = COL.panel,
+	Font = Enum.Font.Code,
+	Text = DISCORD_LINK,
+	TextColor3 = COL.text,
+	TextSize = 12,
+	ClearTextOnFocus = false,
+	Parent = keyWindow,
+}, { corner(6), stroke() })
+linkBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if linkBox.Text ~= DISCORD_LINK then
+		linkBox.Text = DISCORD_LINK
+	end
+end)
+
+local copyBtn = button({
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -20, 0, 212),
+	Size = UDim2.fromOffset(100, 30),
+	Text = "Copy Link",
+	TextColor3 = COL.text,
+	TextSize = 12,
+	Parent = keyWindow,
+})
+copyBtn.MouseButton1Click:Connect(function()
+	linkBox:CaptureFocus()
+	task.wait()
+	linkBox.CursorPosition = #DISCORD_LINK + 1
+	linkBox.SelectionStart = 1
+	copyBtn.Text = "Press Ctrl+C"
+	task.delay(3, function()
+		copyBtn.Text = "Copy Link"
+	end)
+end)
+
+local function trySubmit()
+	if unlocked then return end
+	local entered = keyBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+	if entered == KEY then
+		unlocked = true
+		keyStatus.Text = "Key accepted!"
+		keyStatus.TextColor3 = COL.green
+		task.delay(0.6, function()
+			keyWindow.Visible = false
+			setOpen(true)
+		end)
+	else
+		keyStatus.Text = "Invalid key"
+		keyStatus.TextColor3 = COL.red
+		keyBox.Text = ""
+	end
+end
+submitBtn.MouseButton1Click:Connect(trySubmit)
+keyBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then trySubmit() end
+end)
+
+local function toggleClick()
+	if unlocked then
+		setOpen(not menu.Visible)
+	else
+		keyWindow.Visible = not keyWindow.Visible
+	end
+end
+
+do
+	local isDown, moved, startInput, startPos = false, false, nil, nil
+	toggle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDown, moved = true, false
+			startInput = input.Position
+			startPos = toggle.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not isDown then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local d = input.Position - startInput
+			if not moved and d.Magnitude > 5 then moved = true end
+			if moved then
+				local abs = gui.AbsoluteSize
+				local x = math.clamp(startPos.X.Offset + d.X, 0, abs.X - 56)
+				local y = math.clamp(startPos.Y.Offset + d.Y, -(abs.Y - 56), 0)
+				toggle.Position = UDim2.new(0, x, 1, y)
+			end
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if isDown and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			isDown = false
+			if not moved then toggleClick() end
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- SHARED UI BUILDERS FOR TOOLS / SETTINGS
+---------------------------------------------------------------------
+local function scrollPage(page)
+	return new("ScrollingFrame", {
+		Position = UDim2.fromOffset(8, 8),
+		Size = UDim2.new(1, -16, 1, -16),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Parent = page,
+	}, { new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+end
+
+local function sectionLabel(parent, order, text)
+	return label({
+		Size = UDim2.new(1, -8, 0, 18),
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = COL.dim,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+end
+
+local function toggleRow(parent, order, title, desc, onChange)
+	local row = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 52),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = order,
+		Parent = parent,
+	}, { corner(6), stroke() })
+	label({ Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -80, 0, 18), Text = title, Font = Enum.Font.GothamMedium, TextSize = 14, Parent = row })
+	label({ Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -80, 0, 16), Text = desc, TextSize = 12, TextColor3 = COL.dim, Parent = row })
+	local sw = new("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(40, 22),
+		BackgroundColor3 = COL.panel2,
+		Text = "",
+		AutoButtonColor = false,
+		Parent = row,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), stroke() })
+	local knob = new("Frame", {
+		Position = UDim2.fromOffset(3, 3),
+		Size = UDim2.fromOffset(16, 16),
+		BackgroundColor3 = COL.text,
+		Parent = sw,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	local state = false
+	local function set(v)
+		state = v
+		sw.BackgroundColor3 = v and COL.accent or COL.panel2
+		knob:TweenPosition(v and UDim2.fromOffset(21, 3) or UDim2.fromOffset(3, 3), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
+		onChange(v)
+	end
+	sw.MouseButton1Click:Connect(function() set(not state) end)
+	return row, set
+end
+
+local function inputRow(parent, order, title, default, onCommit)
+	local row = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 40),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = order,
+		Parent = parent,
+	}, { corner(6), stroke() })
+	label({ Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -130, 1, 0), Text = title, Font = Enum.Font.GothamMedium, TextSize = 14, Parent = row })
+	local box = new("TextBox", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(100, 26),
+		BackgroundColor3 = COL.panel2,
+		Font = Enum.Font.Code,
+		Text = tostring(default),
+		TextColor3 = COL.text,
+		TextSize = 13,
+		ClearTextOnFocus = false,
+		Parent = row,
+	}, { corner(4), stroke() })
+	box.FocusLost:Connect(function() onCommit(box) end)
+	return box
+end
+
+local function getRoot()
+	local char = player.Character
+	return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+---------------------------------------------------------------------
+-- TOOLS PAGE: FLY / NOCLIP / TELEPORT
+---------------------------------------------------------------------
+do
+	local page = makePage("Tools")
+	local sf = scrollPage(page)
+	local o = 0
+	local function nxt() o += 1 return o end
+
+	-- FLY ---------------------------------------------------------
+	local flySpeed = 60
+	local flyConn
+	local flyVel = Vector3.zero
+	local motorChar, motors = nil, {}
+
+	local function stopFly()
+		if flyConn then flyConn:Disconnect() flyConn = nil end
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.PlatformStand = false end
+		local animate = char and char:FindFirstChild("Animate")
+		if animate and animate:IsA("LocalScript") then animate.Enabled = true end
+		local root = getRoot()
+		if root then
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+			local lv = root.CFrame.LookVector
+			local flat = Vector3.new(lv.X, 0, lv.Z)
+			if flat.Magnitude > 0.01 then
+				root.CFrame = CFrame.lookAt(root.Position, root.Position + flat)
+			end
+		end
+	end
+
+	local function startFly()
+		stopFly()
+		flyVel = Vector3.zero
+		flyConn = RunService.RenderStepped:Connect(function(dt)
+			local char = player.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local cam = workspace.CurrentCamera
+			if not (root and hum and cam) then return end
+
+			hum.PlatformStand = true
+
+			local animate = char:FindFirstChild("Animate")
+			if animate and animate:IsA("LocalScript") and animate.Enabled then animate.Enabled = false end
+			local animator = hum:FindFirstChildOfClass("Animator")
+			if animator then
+				for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+					track:Stop(0)
+				end
+			end
+			if motorChar ~= char then
+				motorChar = char
+				motors = {}
+				for _, d in ipairs(char:GetDescendants()) do
+					if d:IsA("Motor6D") then table.insert(motors, d) end
+				end
+			end
+			for _, m in ipairs(motors) do
+				if m.Parent then m.Transform = CFrame.new() end
+			end
+			root.AssemblyAngularVelocity = Vector3.zero
+
+			local dir = Vector3.zero
+			if not UserInputService:GetFocusedTextBox() then
+				local cf = cam.CFrame
+				if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsKeyDown(Enum.KeyCode.E) then dir += Vector3.yAxis end
+				if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.Q) then dir -= Vector3.yAxis end
+				if dir.Magnitude == 0 and hum.MoveDirection.Magnitude > 0 then
+					dir = hum.MoveDirection
+				end
+			end
+			if dir.Magnitude > 0 then dir = dir.Unit end
+
+			flyVel = flyVel:Lerp(dir * flySpeed, 1 - math.exp(-dt * 9))
+			root.AssemblyLinearVelocity = flyVel
+
+			local look = cam.CFrame.LookVector
+			local flat = Vector3.new(look.X, 0, look.Z)
+			if flat.Magnitude < 0.01 then flat = Vector3.new(0, 0, -1) end
+			flat = flat.Unit
+			local fwd = math.clamp(flyVel:Dot(flat) / flySpeed, 0, 1)
+			local facing = CFrame.lookAt(root.Position, root.Position + flat)
+			local target = facing * CFrame.Angles(-math.rad(50) * fwd, 0, 0)
+			root.CFrame = root.CFrame:Lerp(target, 1 - math.exp(-dt * 12))
+		end)
+	end
+
+	-- NOCLIP ------------------------------------------------------
+	local noclipConn
+	local changed = setmetatable({}, { __mode = "k" })
+
+	local function setNoclip(on)
+		if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+		if on then
+			noclipConn = RunService.Stepped:Connect(function()
+				local char = player.Character
+				if not char then return end
+				for _, p in ipairs(char:GetDescendants()) do
+					if p:IsA("BasePart") and p.CanCollide then
+						changed[p] = true
+						p.CanCollide = false
+					end
+				end
+			end)
+		else
+			for p in pairs(changed) do
+				if p.Parent then p.CanCollide = true end
+			end
+			table.clear(changed)
+		end
+	end
+
+	-- TELEPORT ----------------------------------------------------
+	local function teleportToPlayer(target)
+		local root = getRoot()
+		local tChar = target.Character
+		local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+		if root and tRoot then
+			root.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+		end
+	end
+
+	local mouse = player:GetMouse()
+	local clickTp = false
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed or not clickTp then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			local root = getRoot()
+			if root and mouse.Target then
+				root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+			end
+		end
+	end)
+
+	-- UI ----------------------------------------------------------
+	sectionLabel(sf, nxt(), "MOVEMENT")
+	toggleRow(sf, nxt(), "Fly", "Faces your camera - WASD, Space/E up, Ctrl/Q down", function(on)
+		if on then startFly() else stopFly() end
+	end)
+	inputRow(sf, nxt(), "Fly speed", flySpeed, function(box)
+		local n = tonumber(box.Text)
+		if n then flySpeed = math.clamp(n, 1, 500) end
+		box.Text = tostring(flySpeed)
+	end)
+	toggleRow(sf, nxt(), "Noclip", "Walk through walls and floors", setNoclip)
+
+	sectionLabel(sf, nxt(), "TELEPORT")
+	toggleRow(sf, nxt(), "Click Teleport", "Click anywhere in the world to teleport there", function(on)
+		clickTp = on
+	end)
+
+	local spawnRow = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 40),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, { corner(6), stroke() })
+	label({ Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -130, 1, 0), Text = "Teleport to spawn", Font = Enum.Font.GothamMedium, TextSize = 14, Parent = spawnRow })
+	local spawnBtn = button({
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(100, 26),
+		Text = "Go",
+		Parent = spawnRow,
+	})
+	spawnBtn.MouseButton1Click:Connect(function()
+		local root = getRoot()
+		local spawn = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
+		if root and spawn then
+			root.CFrame = spawn.CFrame + Vector3.new(0, 4, 0)
+		end
+	end)
+
+	sectionLabel(sf, nxt(), "TELEPORT TO PLAYER")
+	local listBox = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 150),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, { corner(6), stroke() })
+	local plist = new("ScrollingFrame", {
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.new(1, -12, 1, -12),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Parent = listBox,
+	}, { new("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }) })
+
+	local function refreshPlayers()
+		for _, c in ipairs(plist:GetChildren()) do
+			if c:IsA("GuiObject") then c:Destroy() end
+		end
+		local n = 0
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then
+				n += 1
+				local b = button({
+					Size = UDim2.new(1, -6, 0, 26),
+					Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")",
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextColor3 = COL.text,
+					LayoutOrder = n,
+					Parent = plist,
+				})
+				b.MouseButton1Click:Connect(function() teleportToPlayer(p) end)
+			end
+		end
+		if n == 0 then
+			label({ Size = UDim2.new(1, 0, 0, 26), Text = "  No other players in the server", TextColor3 = COL.dim, TextSize = 12, Parent = plist })
+		end
+	end
+	refreshPlayers()
+	Players.PlayerAdded:Connect(refreshPlayers)
+	Players.PlayerRemoving:Connect(function() task.defer(refreshPlayers) end)
+end
+
+---------------------------------------------------------------------
+-- SETTINGS PAGE: ACCENT COLOR
+---------------------------------------------------------------------
+do
+	local page = makePage("Settings")
+	local sf = scrollPage(page)
+	local o = 0
+	local function nxt() o += 1 return o end
+
+	local function skip(d)
+		return d:GetAttribute("NoRecolor") or (d.Parent and d.Parent:GetAttribute("NoRecolor"))
+	end
+
+	local function applyAccent(newColor)
+		local old = COL.accent
+		if old == newColor then return end
+		COL.accent = newColor
+		local roots = { menu, toggle }
+		for _, r in ipairs(roots) do
+			for _, d in ipairs(r:GetDescendants()) do
+				if not skip(d) then
+					if (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox")) and d.TextColor3 == old then
+						d.TextColor3 = newColor
+					end
+					if d:IsA("GuiObject") and d.BackgroundColor3 == old then
+						d.BackgroundColor3 = newColor
+					end
+					if d:IsA("UIStroke") and d.Color == old then
+						d.Color = newColor
+					end
+				end
+			end
+		end
+	end
+
+	sectionLabel(sf, nxt(), "ACCENT COLOR")
+
+	local swatchBox = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 60),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = nxt(),
+		Parent = sf,
+	}, {
+		corner(6),
+		stroke(),
+		new("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingTop = UDim.new(0, 12) }),
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) }),
+	})
+
+	local swatches = {
+		{ "Purple", Color3.fromRGB(125, 85, 255) },
+		{ "Blue", Color3.fromRGB(70, 130, 255) },
+		{ "Cyan", Color3.fromRGB(0, 200, 220) },
+		{ "Green", Color3.fromRGB(70, 200, 90) },
+		{ "Yellow", Color3.fromRGB(240, 200, 50) },
+		{ "Orange", Color3.fromRGB(255, 140, 40) },
+		{ "Red", Color3.fromRGB(230, 60, 60) },
+		{ "Pink", Color3.fromRGB(255, 95, 170) },
+		{ "White", Color3.fromRGB(255, 255, 255) },
+	}
+
+	local marked
+	local function setMark(btn)
+		if marked then
+			local st = marked:FindFirstChildOfClass("UIStroke")
+			st.Color = COL.stroke
+			st.Thickness = 1
+		end
+		marked = btn
+		if btn then
+			local st = btn:FindFirstChildOfClass("UIStroke")
+			st.Color = Color3.fromRGB(255, 255, 255)
+			st.Thickness = 2
+		end
+	end
+
+	local hexBox
+	for i, s in ipairs(swatches) do
+		local btn = new("TextButton", {
+			Name = s[1],
+			Size = UDim2.fromOffset(36, 36),
+			BackgroundColor3 = s[2],
+			Text = "",
+			AutoButtonColor = false,
+			LayoutOrder = i,
+			Parent = swatchBox,
+		}, { corner(8), stroke() })
+		btn:SetAttribute("NoRecolor", true)
+		btn.MouseButton1Click:Connect(function()
+			applyAccent(s[2])
+			setMark(btn)
+			if hexBox then hexBox.Text = "#" .. s[2]:ToHex():upper() end
+		end)
+		if i == 1 then setMark(btn) end
+	end
+
+	sectionLabel(sf, nxt(), "CUSTOM")
+	hexBox = inputRow(sf, nxt(), "Hex color", "#" .. COL.accent:ToHex():upper(), function(box)
+		local txt = box.Text
+		if not txt:find("^#") then txt = "#" .. txt end
+		local ok, c = pcall(Color3.fromHex, txt)
+		if ok and c then
+			applyAccent(c)
+			setMark(nil)
+		end
+		box.Text = "#" .. COL.accent:ToHex():upper()
+	end)
+end
+
+---------------------------------------------------------------------
+-- SLIDER BUILDER + SCREEN OVERLAY (used by Visuals / Main)
+---------------------------------------------------------------------
+local function sliderRow(parent, order, title, min, max, default, onChange)
+	local row = new("Frame", {
+		Size = UDim2.new(1, -8, 0, 52),
+		BackgroundColor3 = COL.bg,
+		LayoutOrder = order,
+		Parent = parent,
+	}, { corner(6), stroke() })
+	label({ Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -110, 0, 18), Text = title, Font = Enum.Font.GothamMedium, TextSize = 14, Parent = row })
+	local valL = label({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 6),
+		Size = UDim2.fromOffset(80, 18),
+		Text = "",
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextSize = 13,
+		TextColor3 = COL.dim,
+		Parent = row,
+	})
+	local track = new("TextButton", {
+		Position = UDim2.fromOffset(12, 34),
+		Size = UDim2.new(1, -24, 0, 6),
+		BackgroundColor3 = COL.panel2,
+		Text = "",
+		AutoButtonColor = false,
+		Parent = row,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	local fill = new("Frame", {
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = COL.accent,
+		BorderSizePixel = 0,
+		Parent = track,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	local knob = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromOffset(14, 14),
+		BackgroundColor3 = COL.text,
+		Parent = track,
+	}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+
+	local function apply(v)
+		v = math.clamp(v, min, max)
+		local frac = (v - min) / (max - min)
+		fill.Size = UDim2.fromScale(frac, 1)
+		knob.Position = UDim2.fromScale(frac, 0.5)
+		valL.Text = tostring(v)
+		onChange(v)
+	end
+	local function setFromX(x)
+		local frac = math.clamp((x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+		apply(math.floor(min + frac * (max - min) + 0.5))
+	end
+
+	local dragging = false
+	track.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			setFromX(input.Position.X)
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			setFromX(input.Position.X)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			dragging = false
+		end
+	end)
+	apply(default)
+	return row
+end
+
+local overlay = new("Frame", {
+	Name = "Overlay",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ZIndex = 0,
+	Parent = gui,
+})
+
+---------------------------------------------------------------------
+-- VISUALS PAGE: ESP / TRACERS / HEALTH
+---------------------------------------------------------------------
+do
+	local page = makePage("Visuals")
+	local sf = scrollPage(page)
+	local o = 0
+	local function nxt() o += 1 return o end
+
+	local cfg = {
+		esp = false,
+		tracers = false,
+		names = true,
+		health = true,
+		distance = true,
+		teamCheck = false,
+		maxDist = 2000,
+		color = Color3.fromRGB(255, 60, 60),
+	}
+
+	local WHITE = Color3.fromRGB(255, 255, 255)
+	local GREEN = Color3.fromRGB(70, 200, 90)
+	local RED = Color3.fromRGB(220, 60, 60)
+
+	local espFolder = new("Folder", { Name = "SteamESP", Parent = playerGui })
+	local entries = {}
+
+	local function destroyEntry(p)
+		local e = entries[p]
+		if not e then return end
+		e.hl:Destroy()
+		e.bb:Destroy()
+		e.line:Destroy()
+		entries[p] = nil
+	end
+
+	local function buildEntry(p, char, head)
+		local hl = new("Highlight", {
+			Name = "SteamESP",
+			FillColor = cfg.color,
+			OutlineColor = WHITE,
+			FillTransparency = 0.6,
+			DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+			Enabled = false,
+			Parent = char,
+		})
+		local bb = new("BillboardGui", {
+			Name = p.Name,
+			Adornee = head,
+			Size = UDim2.fromOffset(150, 48),
+			StudsOffset = Vector3.new(0, 3, 0),
+			AlwaysOnTop = true,
+			LightInfluence = 0,
+			ResetOnSpawn = false,
+			Enabled = false,
+			Parent = espFolder,
+		})
+		local nameL = label({
+			Size = UDim2.new(1, 0, 0, 16),
+			Text = p.DisplayName,
+			Font = Enum.Font.GothamBold,
+			TextSize = 14,
+			TextColor3 = WHITE,
+			TextStrokeTransparency = 0.3,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Parent = bb,
+		})
+		local bar = new("Frame", {
+			Position = UDim2.fromOffset(25, 20),
+			Size = UDim2.new(1, -50, 0, 6),
+			BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+			BorderSizePixel = 0,
+			Parent = bb,
+		}, { corner(3), stroke(Color3.fromRGB(0, 0, 0), 1) })
+		local fill = new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = GREEN,
+			BorderSizePixel = 0,
+			Parent = bar,
+		}, { corner(3) })
+		local info = label({
+			Position = UDim2.fromOffset(0, 29),
+			Size = UDim2.new(1, 0, 0, 16),
+			Text = "",
+			TextSize = 12,
+			TextColor3 = WHITE,
+			TextStrokeTransparency = 0.4,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Parent = bb,
+		})
+		local line = new("Frame", {
+			Name = p.Name,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = cfg.color,
+			BorderSizePixel = 0,
+			Visible = false,
+			Parent = overlay,
+		})
+		return { char = char, hl = hl, bb = bb, name = nameL, bar = bar, fill = fill, info = info, line = line }
+	end
+
+	RunService.RenderStepped:Connect(function()
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local myRoot = getRoot()
+		local vp = cam.ViewportSize
+		local any = cfg.esp or cfg.tracers
+
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then
+				local char = p.Character
+				local hum = char and char:FindFirstChildOfClass("Humanoid")
+				local root = char and char:FindFirstChild("HumanoidRootPart")
+				local ok = any and hum ~= nil and root ~= nil and hum.Health > 0
+
+				local dist = 0
+				if ok and myRoot then
+					dist = (root.Position - myRoot.Position).Magnitude
+					if dist > cfg.maxDist then ok = false end
+				end
+				if ok and cfg.teamCheck and p.Team ~= nil and p.Team == player.Team then
+					ok = false
+				end
+
+				local e = entries[p]
+				if ok then
+					if not e or e.char ~= char then
+						destroyEntry(p)
+						e = buildEntry(p, char, char:FindFirstChild("Head") or root)
+						entries[p] = e
+					end
+
+					e.hl.Enabled = cfg.esp
+					e.hl.FillColor = cfg.color
+					e.bb.Enabled = cfg.esp
+					if cfg.esp then
+						e.name.Visible = cfg.names
+						e.bar.Visible = cfg.health
+						e.info.Visible = cfg.health or cfg.distance
+						local frac = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+						e.fill.Size = UDim2.fromScale(frac, 1)
+						e.fill.BackgroundColor3 = RED:Lerp(GREEN, frac)
+						local parts = {}
+						if cfg.health then
+							table.insert(parts, math.floor(hum.Health + 0.5) .. "/" .. math.floor(hum.MaxHealth + 0.5) .. " HP")
+						end
+						if cfg.distance then
+							table.insert(parts, math.floor(dist + 0.5) .. " studs")
+						end
+						e.info.Text = table.concat(parts, "  |  ")
+					end
+
+					if cfg.tracers then
+						local pos, onScreen = cam:WorldToViewportPoint(root.Position)
+						if onScreen then
+							local from = Vector2.new(vp.X / 2, vp.Y)
+							local to = Vector2.new(pos.X, pos.Y)
+							local d = to - from
+							e.line.Size = UDim2.fromOffset(d.Magnitude, 2)
+							e.line.Position = UDim2.fromOffset((from.X + to.X) / 2, (from.Y + to.Y) / 2)
+							e.line.Rotation = math.deg(math.atan2(d.Y, d.X))
+							e.line.BackgroundColor3 = cfg.color
+							e.line.Visible = true
+						else
+							e.line.Visible = false
+						end
+					else
+						e.line.Visible = false
+					end
+				elseif e then
+					e.hl.Enabled = false
+					e.bb.Enabled = false
+					e.line.Visible = false
+				end
+			end
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(destroyEntry)
+
+	-- UI ----------------------------------------------------------
+	sectionLabel(sf, nxt(), "ESP")
+	toggleRow(sf, nxt(), "ESP", "Highlights players through walls", function(v) cfg.esp = v end)
+	toggleRow(sf, nxt(), "ESP Tracers", "Line from the bottom of the screen to each player", function(v) cfg.tracers = v end)
+
+	sectionLabel(sf, nxt(), "ESP INFO")
+	local _, setHealth = toggleRow(sf, nxt(), "Show Health", "Health bar and HP number above players", function(v) cfg.health = v end)
+	local _, setNames = toggleRow(sf, nxt(), "Show Names", "Display names above players", function(v) cfg.names = v end)
+	local _, setDist = toggleRow(sf, nxt(), "Show Distance", "Distance to each player in studs", function(v) cfg.distance = v end)
+	setHealth(true)
+	setNames(true)
+	setDist(true)
+
+	sectionLabel(sf, nxt(), "OPTIONS")
+	toggleRow(sf, nxt(), "Team Check", "Ignore players on your team", function(v) cfg.teamCheck = v end)
+	inputRow(sf, nxt(), "Max distance", cfg.maxDist, function(box)
+		local n = tonumber(box.Text)
+		if n then cfg.maxDist = math.clamp(n, 10, 100000) end
+		box.Text = tostring(cfg.maxDist)
+	end)
+	inputRow(sf, nxt(), "ESP color (hex)", "#" .. cfg.color:ToHex():upper(), function(box)
+		local txt = box.Text
+		if not txt:find("^#") then txt = "#" .. txt end
+		local ok, c = pcall(Color3.fromHex, txt)
+		if ok and c then cfg.color = c end
+		box.Text = "#" .. cfg.color:ToHex():upper()
+	end)
+end
+
+---------------------------------------------------------------------
+-- MAIN PAGE: AIMBOT
+---------------------------------------------------------------------
+do
+	local page = makePage("Main")
+	local sf = scrollPage(page)
+	local o = 0
+	local function nxt() o += 1 return o end
+
+	local cfg = {
+		enabled = false,
+		always = false,
+		showFov = true,
+		fov = 150,
+		smooth = 8,
+		head = true,
+		teamCheck = false,
+		visCheck = true,
+	}
+
+	local fovCircle = new("Frame", {
+		Name = "AimbotFOV",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(cfg.fov * 2, cfg.fov * 2),
+		Visible = false,
+		Parent = overlay,
+	}, {
+		new("UICorner", { CornerRadius = UDim.new(1, 0) }),
+		new("UIStroke", { Color = Color3.fromRGB(255, 255, 255), Thickness = 1.5, Transparency = 0.3 }),
+	})
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local function getTarget(cam, mousePos)
+		local best, bestDist = nil, cfg.fov
+		rayParams.FilterDescendantsInstances = { player.Character }
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then
+				local char = p.Character
+				local hum = char and char:FindFirstChildOfClass("Humanoid")
+				local part = char and ((cfg.head and char:FindFirstChild("Head")) or char:FindFirstChild("HumanoidRootPart"))
+				if part and hum and hum.Health > 0 and not (cfg.teamCheck and p.Team ~= nil and p.Team == player.Team) then
+					local sp, onScreen = cam:WorldToViewportPoint(part.Position)
+					if onScreen then
+						local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+						if d < bestDist then
+							local clear = true
+							if cfg.visCheck then
+								local origin = cam.CFrame.Position
+								local hit = workspace:Raycast(origin, part.Position - origin, rayParams)
+								clear = (hit == nil) or hit.Instance:IsDescendantOf(char)
+							end
+							if clear then best, bestDist = part, d end
+						end
+					end
+				end
+			end
+		end
+		return best
+	end
+
+	RunService:BindToRenderStep("SteamAimbot", Enum.RenderPriority.Camera.Value + 1, function(dt)
+		local cam = workspace.CurrentCamera
+		local mousePos = UserInputService:GetMouseLocation()
+
+		fovCircle.Visible = cfg.enabled and cfg.showFov
+		fovCircle.Position = UDim2.fromOffset(mousePos.X, mousePos.Y)
+		fovCircle.Size = UDim2.fromOffset(cfg.fov * 2, cfg.fov * 2)
+
+		if not cfg.enabled or not cam then return end
+		if UserInputService:GetFocusedTextBox() then return end
+		local active = cfg.always or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+		if not active then return end
+
+		local target = getTarget(cam, mousePos)
+		if target then
+			local alpha = 1 - (1 - 1 / math.max(cfg.smooth, 1)) ^ (dt * 60)
+			cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, target.Position), alpha)
+		end
+	end)
+
+	-- UI ----------------------------------------------------------
+	sectionLabel(sf, nxt(), "AIMBOT")
+	toggleRow(sf, nxt(), "Aimbot", "Hold right mouse button to lock onto a player", function(v) cfg.enabled = v end)
+	toggleRow(sf, nxt(), "Always Aim", "Aim without holding a button (good for mobile)", function(v) cfg.always = v end)
+
+	sectionLabel(sf, nxt(), "TUNING")
+	sliderRow(sf, nxt(), "Aimbot FOV (pixels)", 20, 600, cfg.fov, function(v) cfg.fov = v end)
+	sliderRow(sf, nxt(), "Smoothness (1 = instant, higher = slower)", 1, 50, cfg.smooth, function(v) cfg.smooth = v end)
+	local _, setFov = toggleRow(sf, nxt(), "Show FOV Circle", "Draws the aim radius around your cursor", function(v) cfg.showFov = v end)
+	setFov(true)
+
+	sectionLabel(sf, nxt(), "TARGETING")
+	local _, setHead = toggleRow(sf, nxt(), "Aim at Head", "Off = aim at the torso", function(v) cfg.head = v end)
+	local _, setVis = toggleRow(sf, nxt(), "Visible Check", "Skip players hidden behind walls", function(v) cfg.visCheck = v end)
+	setHead(true)
+	setVis(true)
+	toggleRow(sf, nxt(), "Team Check", "Ignore players on your team", function(v) cfg.teamCheck = v end)
+end
+
+---------------------------------------------------------------------
+-- INFO PAGE
+---------------------------------------------------------------------
+do
+	local page = makePage("Info")
+	local box = panel(page, UDim2.fromOffset(8, 8), UDim2.new(1, -16, 0, 150))
+	label({
+		Position = UDim2.fromOffset(16, 14),
+		Size = UDim2.new(1, -32, 0, 24),
+		Text = "About " .. TITLE,
+		Font = Enum.Font.GothamBold,
+		TextSize = 18,
+		Parent = box,
+	})
+	new("Frame", {
+		Position = UDim2.fromOffset(16, 46),
+		Size = UDim2.new(1, -32, 0, 1),
+		BackgroundColor3 = COL.stroke,
+		BorderSizePixel = 0,
+		Parent = box,
+	})
+	label({
+		Position = UDim2.fromOffset(16, 58),
+		Size = UDim2.new(1, -32, 0, 40),
+		Text = "This script was made by Ledger, and only Ledger.",
+		TextSize = 14,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Parent = box,
+	})
+	label({
+		Position = UDim2.fromOffset(16, 104),
+		Size = UDim2.new(1, -32, 0, 18),
+		Text = TITLE .. " " .. VERSION .. " | Build " .. BUILD,
+		TextSize = 12,
+		TextColor3 = COL.dim,
+		Parent = box,
+	})
+end
+
+---------------------------------------------------------------------
+-- SEARCH (filters tabs + features, click a result to jump to it)
+---------------------------------------------------------------------
+do
+	local page = makePage("Search")
+	local box = panel(page, UDim2.fromOffset(8, 8), UDim2.new(1, -16, 1, -16))
+	local results = new("ScrollingFrame", {
+		Position = UDim2.fromOffset(8, 8),
+		Size = UDim2.new(1, -16, 1, -16),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Parent = box,
+	}, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+
+	local entries = {}
+	for _, name in ipairs(TABS) do
+		table.insert(entries, { name = name, tab = name, keys = name:lower() })
+	end
+	local extra = {
+		{ "Fly", "Tools", "flight flying speed float" },
+		{ "Fly speed", "Tools", "fly faster slower" },
+		{ "Noclip", "Tools", "no clip walls collide ghost" },
+		{ "Click Teleport", "Tools", "tp click mouse" },
+		{ "Teleport to spawn", "Tools", "tp spawn respawn" },
+		{ "Teleport to player", "Tools", "tp players goto" },
+		{ "Accent Color", "Settings", "theme colour color aspect style" },
+		{ "Hex color", "Settings", "custom accent theme" },
+		{ "ESP", "Visuals", "esp highlight players wallhack" },
+		{ "ESP Tracers", "Visuals", "traces lines tracer" },
+		{ "Show Health", "Visuals", "esp health hp bar" },
+		{ "Aimbot", "Main", "aim assist lock camera" },
+		{ "Aimbot FOV", "Main", "fov circle radius" },
+		{ "Aimbot Smoothness", "Main", "smooth slider speed" },
+	}
+	for _, e in ipairs(extra) do
+		table.insert(entries, { name = e[1], tab = e[2], keys = (e[1] .. " " .. e[3]):lower() })
+	end
+
+	local function clear()
+		for _, c in ipairs(results:GetChildren()) do
+			if c:IsA("GuiObject") then c:Destroy() end
+		end
+	end
+
+	search:GetPropertyChangedSignal("Text"):Connect(function()
+		local q = search.Text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+		if q == "" then
+			page.Visible = false
+			selectTab(current)
+			return
+		end
+		clear()
+		local n = 0
+		for _, e in ipairs(entries) do
+			if e.keys:find(q, 1, true) then
+				n += 1
+				local b = button({
+					Size = UDim2.new(1, -6, 0, 30),
+					Text = "  " .. e.name .. "   ›   " .. e.tab,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextColor3 = COL.text,
+					LayoutOrder = n,
+					Parent = results,
+				})
+				b.MouseButton1Click:Connect(function()
+					search.Text = ""
+					selectTab(e.tab)
+				end)
+			end
+		end
+		if n == 0 then
+			label({ Size = UDim2.new(1, 0, 0, 30), Text = "No results for \"" .. q .. "\"", TextColor3 = COL.dim, Parent = results })
+		end
+		for pn, p in pairs(pages) do
+			p.Visible = (pn == "Search")
+		end
+		crumbTitle.Text = "Search"
+		crumbSub.Text = "Results for \"" .. q .. "\""
+	end)
+end
+
+local dragging, dragStart, startPos
+header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = menu.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local d = input.Position - dragStart
+		menu.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+	end
+end)
